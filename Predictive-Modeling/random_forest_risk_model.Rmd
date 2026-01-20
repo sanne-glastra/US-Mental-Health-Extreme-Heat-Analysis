@@ -1,0 +1,452 @@
+---
+title: "random-forest-analysis-20250305"
+author: "Sanne Glastra"
+date: "2025-03-05"
+output:
+  html_document:
+    fig_width: 11   # Increase width (default is 7)
+    fig_height: 9   # Increase height (default is 5)
+project: biostatistics mph capstone
+objective: second data analysis - random forest analysis
+---
+
+# DATA SETUP 
+
+## setup
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "/Users/sanneglastra/Documents/school/columbia/spring 2025/capstone/project folder")
+
+knitr::opts_chunk$set(
+  echo = TRUE,      # Hide code
+  warning = FALSE,   # Hide warnings
+  message = FALSE   # Hide messages
+)
+```
+
+## read in packages
+```{r}
+library(dplyr)
+library(ggplot2)
+library(randomForest)
+library(readr)
+library(ranger)
+library(corrplot)
+library(flextable)
+library(officer)
+library(patchwork)
+```
+
+## data import
+```{r, results = 'asis'}
+
+data_clean <- read_csv("data/data_clean.csv")
+
+# View(data_clean)
+# colnames(data_clean)
+```
+
+# RANDOM FOREST ANALYSIS
+
+# MODEL 1   
+
+```{r}
+data_rf <- subset(data_clean, select = c(12,32,38,40,42,44,46,48,50,52,54,56,60,62,64,66,68,70,72))
+```
+
+```{r}
+# Compute correlation matrix
+cor_matrix <- cor(data_rf)
+testRes = cor.mtest(data_rf, conf.level = 0.95)
+
+
+# Print correlation matrix
+png("correlation_plot.png", width = 1000, height = 1000, res = 150)
+
+corrplot(cor_matrix, type = 'lower', order = 'hclust', tl.col = 'black',
+         cl.ratio = 0.2, tl.srt = 45, col = COL2('PuOr', 10))
+
+dev.off()
+```
+
+```{r}
+train_index <- sample(1:nrow(data_rf), 0.8 * nrow(data_rf))  # 80% training data
+train_data <- data_rf[train_index, ]
+test_data <- data_rf[-train_index, ]
+```
+
+```{r}
+# number of features
+n_features <- ncol(train_data) - 1
+
+rf_model <- ranger(
+  formula = PR_MNTHL ~ ., 
+  data = train_data,
+  num.trees = 500,  # number of trees
+  mtry = floor(n_features/3),  # features sampled per split
+  importance = "impurity",  # variable importance measure
+  seed = 123
+)
+
+# View model summary
+print(rf_model)
+```
+
+# evaluate model performance
+```{r}
+# Make predictions
+predictions <- predict(rf_model, data = test_data)$predictions
+
+# Compute Mean Squared Error (for regression)
+mse <- mean((test_data$PR_MNTHL - predictions)^2)
+print(paste("MSE:", mse))
+
+# Compute R-squared
+ss_total <- sum((test_data$PR_MNTHL - mean(train_data$PR_MNTHL))^2)
+ss_residual <- sum((test_data$PR_MNTHL - predictions)^2)
+r_squared <- 1 - (ss_residual / ss_total)
+print(paste("R-squared:", r_squared))
+```
+
+# assess variable importance
+```{r}
+# Print variable importance
+importance <- rf_model$variable.importance
+print(importance)
+
+# Plot variable importance
+importance_df <- data.frame(Feature = names(importance), Importance = importance)
+ggplot(importance_df, aes(x = reorder(Feature, Importance), y = Importance)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +
+  labs(title = "Variable Importance", x = "Features", y = "Importance")
+```
+
+# Create publishable plot
+```{r}
+# Create a mapping of your original feature names to simplified labels
+label_map <- c(
+  "PR_POV" = "Poverty",
+  "PR_AGE65" = "Age 65 and Older",
+  "PR_MOBILE" = "Mobile Home",
+  "PR_UNEMP" = "Unemployment",
+  "PR_TREEC" = "Tree Canopy Cover",
+  "PR_DISABL" = "Disability",
+  "PR_UNINSUR" = "Uninsured",
+  "PR_RENT" = "Rental Housing",
+  "P_NEHD" = "Extreme Heat Days",
+  "PR_NOHSDP" = "No High School Diploma",
+  "PR_IMPERV" = "Impervious Surface Coverage",
+  "PR_NOVEH" = "No Vehicle Availability",
+  "PR_ISO" = "Living Alone",
+  "PR_ODW" = "Occupants per Dwelling",
+  "PR_ELP" = "English Less Than Well",
+  "PR_AGE5" = "Age 5 and Younger",
+  "PR_OZONE" = "Ozone Exposure",
+  "PR_PM25" = "PM2.5 Exposure"
+)
+
+
+# Apply custom labels to the 'Feature' column manually
+importance_df$Feature <- factor(importance_df$Feature, levels = names(label_map))
+levels(importance_df$Feature) <- label_map
+
+# Plot variable importance with simplified labels
+a <- ggplot(importance_df, aes(x = reorder(Feature, Importance), y = Importance)) +
+  geom_bar(stat = "identity", fill = "steelblue", color = "black", width = 0.7) +
+  coord_flip() +
+  labs(
+    title = "Model 1",
+    x = "Features",
+    y = "Importance Score"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 15, face = "bold"),
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_blank(),  # Remove y-axis title
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12)
+  )
+
+a
+```
+
+# MODEL 2   
+# select most important variables + extreme heat variable
+
+```{r}
+data_rf2 <- data_clean %>%
+  dplyr::select(PR_MNTHL, PR_POV, PR_NOHSDP, PR_AGE65, PR_MOBILE, PR_UNEMP, PR_TREEC, PR_DISABL, PR_UNINSUR, PR_RENT, P_NEHD)
+```
+
+```{r}
+corrplot(cor(data_rf2), type = 'lower', order = 'hclust', tl.col = 'black',
+         cl.ratio = 0.2, tl.srt = 45, col = COL2('PuOr', 10))
+```
+
+
+```{r}
+train_index2 <- sample(1:nrow(data_rf2), 0.8 * nrow(data_rf2))  # 80% training data
+train_data2 <- data_rf2[train_index2, ]
+test_data2 <- data_rf2[-train_index2, ]
+```
+
+```{r}
+# number of features
+n_features2 <- ncol(train_data2) - 1
+
+rf_model2 <- ranger(
+  formula = PR_MNTHL ~ ., 
+  data = train_data2,
+  num.trees = 500,  # number of trees
+  mtry = floor(n_features2/3),  # features sampled per split
+  importance = "impurity",  # variable importance measure
+  seed = 123
+)
+
+# View model summary
+print(rf_model2)
+```
+
+# evaluate model performance
+```{r}
+# Make predictions
+predictions2 <- predict(rf_model2, data = test_data2)$predictions
+
+# Compute Mean Squared Error (for regression)
+mse2 <- mean((test_data2$PR_MNTHL - predictions2)^2)
+print(paste("MSE:", mse2))
+
+# Compute R-squared
+ss_total2 <- sum((test_data2$PR_MNTHL - mean(train_data2$PR_MNTHL))^2)
+ss_residual2 <- sum((test_data2$PR_MNTHL - predictions2)^2)
+r_squared2 <- 1 - (ss_residual2 / ss_total2)
+print(paste("R-squared:", r_squared2))
+```
+
+
+# assess variable importance
+```{r}
+# Print variable importance
+importance2 <- rf_model2$variable.importance
+print(importance2)
+
+# Plot variable importance
+importance_df2 <- data.frame(Feature = names(importance2), Importance = importance2)
+ggplot(importance_df2, aes(x = reorder(Feature, Importance), y = Importance)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +
+  labs(title = "Variable Importance", x = "Features", y = "Importance")
+```
+# Create publishable plot
+```{r}
+# Create a mapping of your original feature names to simplified labels
+label_map <- c(
+  "PR_POV" = "Poverty",
+  "PR_AGE65" = "Age 65 and Older",
+  "PR_MOBILE" = "Mobile Home",
+  "PR_UNEMP" = "Unemployment",
+  "PR_TREEC" = "Tree Canopy Cover",
+  "PR_DISABL" = "Disability",
+  "PR_UNINSUR" = "Uninsured",
+  "PR_RENT" = "Rental Housing",
+  "P_NEHD" = "Extreme Heat Days",
+  "PR_NOHSDP" = "No High School Diploma"
+)
+
+# Apply custom labels to the 'Feature' column manually
+importance_df2$Feature <- factor(importance_df2$Feature, levels = names(label_map))
+levels(importance_df2$Feature) <- label_map
+
+# Plot variable importance with simplified labels
+b <- ggplot(importance_df2, aes(x = reorder(Feature, Importance), y = Importance)) +
+  geom_bar(stat = "identity", fill = "steelblue", color = "black", width = 0.7) +
+  coord_flip() +
+  labs(
+    title = "Model 2",
+    x = "Features",
+    y = "Importance Score"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 15, face = "bold"),
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_blank(),  # Remove y-axis title
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12)
+  )
+
+b
+```
+
+
+# MODEL 3
+# PR_NOHSDP and PR_POV are quite correlated, so let's pick the most important one. 
+# select most important variables + extreme heat variable
+```{r}
+data_rf3 <- data_clean %>%
+  dplyr::select(PR_MNTHL, PR_POV, PR_AGE65, PR_MOBILE, PR_UNEMP, PR_TREEC, PR_DISABL, PR_UNINSUR, PR_RENT, P_NEHD)
+```
+
+```{r}
+corrplot(cor(data_rf3), type = 'lower', order = 'hclust', tl.col = 'black',
+         cl.ratio = 0.2, tl.srt = 45, col = COL2('PuOr', 10))
+```
+
+
+```{r}
+train_index3 <- sample(1:nrow(data_rf3), 0.8 * nrow(data_rf3))  # 80% training data
+train_data3 <- data_rf3[train_index3, ]
+test_data3 <- data_rf3[-train_index3, ]
+```
+
+```{r}
+# number of features
+n_features3 <- ncol(train_data3) - 1
+
+rf_model3 <- ranger(
+  formula = PR_MNTHL ~ ., 
+  data = train_data3,
+  num.trees = 500,  # number of trees
+  mtry = floor(n_features3/3),  # features sampled per split
+  importance = "impurity",  # variable importance measure
+  seed = 123
+)
+
+# View model summary
+print(rf_model3)
+```
+
+# evaluate model performance
+```{r}
+# Make predictions
+predictions3 <- predict(rf_model3, data = test_data3)$predictions
+
+# Compute Mean Squared Error (for regression)
+mse3 <- mean((test_data3$PR_MNTHL - predictions3)^2)
+print(paste("MSE:", mse3))
+
+# Compute R-squared
+ss_total3 <- sum((test_data3$PR_MNTHL - mean(train_data3$PR_MNTHL))^2)
+ss_residual3 <- sum((test_data3$PR_MNTHL - predictions3)^2)
+r_squared3 <- 1 - (ss_residual3 / ss_total3)
+print(paste("R-squared:", r_squared3))
+```
+
+
+# assess variable importance
+```{r}
+# Print variable importance
+importance3 <- rf_model3$variable.importance
+print(importance3)
+
+# Plot variable importance
+importance_df3 <- data.frame(Feature = names(importance3), Importance = importance3)
+ggplot(importance_df3, aes(x = reorder(Feature, Importance), y = Importance)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +
+  labs(title = "Variable Importance", x = "Features", y = "Importance")
+```
+# Publishable plot
+```{r}
+# Create a mapping of your original feature names to simplified labels
+label_map <- c(
+  "PR_POV" = "Poverty",
+  "PR_AGE65" = "Age 65 and Older",
+  "PR_MOBILE" = "Mobile Home",
+  "PR_UNEMP" = "Unemployment",
+  "PR_TREEC" = "Tree Canopy Cover",
+  "PR_DISABL" = "Disability",
+  "PR_UNINSUR" = "Uninsured",
+  "PR_RENT" = "Rental Housing",
+  "P_NEHD" = "Extreme Heat Days"
+)
+
+# Apply custom labels to the 'Feature' column manually
+importance_df3$Feature <- factor(importance_df3$Feature, levels = names(label_map))
+levels(importance_df3$Feature) <- label_map
+
+# Plot variable importance with simplified labels
+c <- ggplot(importance_df3, aes(x = reorder(Feature, Importance), y = Importance)) +
+  geom_bar(stat = "identity", fill = "steelblue", color = "black", width = 0.7) +
+  coord_flip() +
+  labs(
+    title = "Model 3",
+    x = "Features",
+    y = "Importance Score"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 15, face = "bold"),
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_blank(),  # Remove y-axis title
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12)
+  )
+
+c
+```
+
+# 
+# SUMMARY TABLE
+
+```{r}
+# Assuming you already have these results for models 1, 2, and 3
+model_summary <- data.frame(
+  Metric = c("Number of Trees", "Mtry", "OOB Error (MSE)", "R-squared (OOB)"),
+  Model_1 = c(
+    format(rf_model$num.trees, big.mark = "", scientific = FALSE), 
+    format(rf_model$mtry, big.mark = "", scientific = FALSE), 
+    round(mse, 2),  # Round MSE to 2 decimal places
+    round(r_squared, 2)  # Round R-squared to 2 decimal places
+  ),  # Replace with Model 1 results
+  Model_2 = c(
+    format(rf_model2$num.trees, big.mark = "", scientific = FALSE), 
+    format(rf_model2$mtry, big.mark = "", scientific = FALSE), 
+    round(mse2, 2),  # Round MSE to 2 decimal places
+    round(r_squared2, 2)  # Round R-squared to 2 decimal places
+  ),  # Replace with Model 2 results
+  Model_3 = c(
+    format(rf_model3$num.trees, big.mark = "", scientific = FALSE), 
+    format(rf_model3$mtry, big.mark = "", scientific = FALSE), 
+    round(mse3, 2),  # Round MSE to 2 decimal places
+    round(r_squared3, 2)  # Round R-squared to 2 decimal places
+  )   # Replace with Model 3 results
+)
+
+# Print the summary table
+print(model_summary)
+
+
+```
+
+# format and export
+```{r}
+model_summary_clean <- model_summary %>%
+  flextable() %>%
+  # Bold headers
+  bold(part = "header") %>%
+  # Set font to Times New Roman, size to 12
+  font(fontname = "Times New Roman", part = "all") %>%
+  fontsize(size = 11, part = "all") %>%
+  # Add borders only below the header and in specific locations
+  hline_top(border = fp_border(color = "black", width = 1.5), part = "header") %>%
+  hline_bottom(border = fp_border(color = "black", width = 1.5), part = "body") %>% # Bottom border
+  # Add padding for readability
+  padding(padding = 5, part = "all") %>%
+  # Save as a docx file
+  save_as_docx(path = "rf_model_summary.docx")
+
+# Print the flextable to view it
+print(model_summary_clean)
+
+```
+
+# Combined plot
+```{r}
+combined_plot <- a | (b / c) 
+combined_plot_annotated <- combined_plot + plot_annotation(tag_levels = 'A')
+ggsave("combined_plot.png", combined_plot_annotated, width = 13, height = 15, dpi = 300)
+
+```
+

@@ -1,0 +1,331 @@
+---
+title: "linear-regression-analysis-20250226"
+author: "Sanne Glastra"
+date: "2025-02-26"
+output:
+  html_document:
+    fig_width: 11   # Increase width (default is 7)
+    fig_height: 9   # Increase height (default is 5)
+project: biostatistics mph capstone
+objective: first data analysis - linear regression analysis
+---
+
+# DATA SETUP
+## setup
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "/Users/sanneglastra/Documents/school/columbia/spring 2025/capstone/project folder")
+
+knitr::opts_chunk$set(
+  echo = TRUE,      # Hide code
+  warning = FALSE,   # Hide warnings
+  message = FALSE   # Hide messages
+)
+```
+
+
+## read in packages
+```{r}
+library(dplyr)
+library(ggplot2)
+library(readr)
+library(lmtest)
+library(broom)
+library(tidyverse)
+library(gridExtra)
+library(car)
+library(flextable)
+library(officer)
+```
+
+## data import
+```{r, results = 'asis'}
+library(readr)
+data_clean <- read_csv("data/data_clean.csv")
+data_clean$SOCIODEM_SCORE <-10*(data_clean$SOCIODEM_SCORE)
+
+summary(data_clean$SOCIODEM_SCORE)
+summary(data_clean$P_IMPERV)
+summary(data_clean$P_TREEC)
+summary(data_clean$P_MOBILE)
+summary(data_clean$P_NOVEH)
+summary(data_clean$P_NOVEH)
+summary(data_clean$P_PM25)
+
+
+# View(data_clean)
+# colnames(data_clean)
+```
+
+# PHASE 1: EXPLORATORY LINEAR MODELING (ASSUMPTION CHECKING)
+
+## scatterplots
+```{r}
+# for entire u.s. by state
+data_clean1 <- data_clean %>% 
+  group_by(STATE, region) %>% 
+  summarise(P_NEHD_STATE = mean(P_NEHD),
+            PR_MNTHL_STATE = mean(PR_MNTHL))
+
+ggplot(data_clean1, aes(x = P_NEHD_STATE, y = PR_MNTHL_STATE)) + 
+  geom_point() +
+  geom_smooth(method = "lm", color = "red")
+
+# by region (each point = state)
+ggplot(data_clean1, aes(P_NEHD_STATE, PR_MNTHL_STATE)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm") +
+  facet_wrap(~ region)
+
+
+```
+## NOTE: dag models were used to determine which covariates should be included. 
+
+## run univariate
+```{r}
+lm1 = lm(PR_MNTHL~SOCIODEM_SCORE, data = data_clean)
+summary(lm1)
+lm1 = lm(PR_MNTHL~NBE_SCORE, data = data_clean)
+summary(lm1)
+lm1 = lm(PR_MNTHL~P_TREEC, data = data_clean)
+summary(lm1)
+lm1 = lm(PR_MNTHL~P_IMPERV, data = data_clean)
+summary(lm1)
+lm1 = lm(PR_MNTHL~P_PM25, data = data_clean)
+summary(lm1)
+lm1 = lm(PR_MNTHL~P_OZONE, data = data_clean) # remove ozone
+summary(lm1)
+lm1 = lm(PR_MNTHL~P_RENT, data = data_clean)
+summary(lm1)
+lm1 = lm(PR_MNTHL~P_MOBILE, data = data_clean)
+summary(lm1)
+lm1 = lm(PR_MNTHL~P_NOVEH, data = data_clean)
+summary(lm1)
+```
+
+## run initial models:
+```{r}
+# run model 1
+lm1 = lm(P_MNTHL~P_NEHD, data = data_clean)
+summary(lm1)
+
+# run model 2
+lm2 = lm(P_MNTHL~P_NEHD + SOCIODEM_SCORE + NBE_SCORE, data = data_clean)
+summary(lm2)
+
+# Perform Partial F-Test
+anova(lm1, lm2) # lm2 improves model fit
+```
+
+## add specific env covariates -- P_NEHD:
+```{r}
+# run model 3
+lm3 = lm(P_MNTHL ~ P_NEHD + SOCIODEM_SCORE + P_IMPERV + P_TREEC + P_MOBILE + P_NOVEH + P_PM25, data = data_clean)
+summary(lm3)
+
+# Perform Partial F-Test
+anova(lm2, lm3) # lm3 improves model fit
+```
+
+## check for sign interactions
+```{r}
+# run model 4 (with interaction term)
+lm4 <- lm(P_MNTHL ~ P_NEHD + SOCIODEM_SCORE + P_IMPERV + P_TREEC + P_MOBILE + P_NOVEH + P_PM25 + P_NEHD:SOCIODEM_SCORE, data = data_clean)
+summary(lm4)
+
+# Perform Partial F-Test
+anova(lm3, lm4) # lm4 does not improve model fit, so we will stick with model 3
+```
+
+
+## check assumptions
+### Unusual and Influential data
+```{r}
+library(olsrr)
+ols_plot_resid_stud(lm3, threshold = NULL, print_plot = TRUE)
+ols_plot_cooksd_bar(lm3, threshold = 1, print_plot = TRUE)
+# there are a lot of outliers, but none are influential
+```
+### Assessing normality
+```{r}
+# Q-Q plot for the residuals
+qqnorm(residuals(lm3), main = "Q-Q Plot of Residuals")
+ols_plot_resid_qq(lm3)
+
+# this looks normal
+```
+### assessing heteroscedasticity and non-linearity
+```{r}
+plot(lm3) # here we see that the residuals vs fitted plot shows a negative line
+
+# try a logit transformation (since our y outcome data is percentile rank)
+data_clean$PR_MNTHL_adj <- (data_clean$PR_MNTHL * (nrow(data_clean) - 1) + 0.5) / nrow(data_clean) # to ensure no exact 0 or 1
+data_clean$PR_MNTHL_logit <- log(data_clean$PR_MNTHL_adj / (1 - data_clean$PR_MNTHL_adj))
+
+# test our new model
+lm3_logit <- lm(PR_MNTHL_logit ~ P_NEHD + SOCIODEM_SCORE + P_IMPERV + P_TREEC + P_MOBILE + P_NOVEH + P_PM25, 
+                data = data_clean)
+
+summary(lm3_logit)
+plot(fitted(lm3_logit), residuals(lm3_logit))  # Check residual pattern -- this fixed the nonlinearity problem
+bptest(lm3_logit) # we still have heteroscedasticity 
+```
+
+Even though the logit transformation improved visually the spread around the residuals vs. fitted plot, the white test still showed evidence of heteroscedasticity. Adding weights did not change much, and therefore, we will try to do logistic regression instead.
+
+# PHASE 2: FINAL LOGISTIC REGRESSION MODEL
+
+## run initial models:
+```{r}
+logit_model1 <- glm(F_MNTHL ~ P_NEHD, 
+                   data = data_clean, family = binomial)
+
+logit_model2 <- glm(F_MNTHL ~ P_NEHD + SOCIODEM_SCORE + NBE_SCORE, 
+                   data = data_clean, family = binomial)
+
+# Likelihood Ratio Test
+anova(logit_model1, logit_model2, test = "Chisq") # therefore, model 2 is better fit
+```
+## add specific env covariates
+```{r}
+logit_model3 <- glm(F_MNTHL ~ P_NEHD + SOCIODEM_SCORE + P_IMPERV + P_TREEC + P_MOBILE + P_NOVEH + P_PM25, 
+                   data = data_clean, family = binomial)
+
+# Likelihood Ratio Test
+anova(logit_model2, logit_model3, test = "Chisq") #therefore model 3 is a better fit
+```
+
+## check for sign interactions
+```{r}
+# run model 4 (with interaction term between sociodem and extreme heat)
+logit_model4 <- glm(F_MNTHL ~ P_NEHD + SOCIODEM_SCORE + P_IMPERV + P_TREEC + P_MOBILE + P_NOVEH + P_PM25 +
+                     P_NEHD:SOCIODEM_SCORE, 
+                   data = data_clean, family = binomial)
+
+# Likelihood Ratio Test
+anova(logit_model3, logit_model4, test = "Chisq") # P_NEHD:SOCIODEM_SCORE interaction term doesn't improve model
+
+  
+# run model 5 (with interaction term between extreme heat and impervious surface, tree canopy coverage, and pm2.5)
+logit_model5 <- glm(F_MNTHL ~ P_NEHD + SOCIODEM_SCORE + P_IMPERV + P_TREEC + P_MOBILE + P_NOVEH + P_PM25 +
+                     P_NEHD:P_TREEC + P_NEHD:P_IMPERV + P_NEHD:P_PM25, 
+                   data = data_clean, family = binomial)
+
+# Likelihood Ratio Test
+anova(logit_model3, logit_model5, test = "Chisq") # adding these interaction terms improves model fit. 
+```
+
+Therefore, logit_model5 is the model we will go with. 
+
+## check assumptions
+### assessing multicolinearity
+```{r}
+vif(logit_model5, type = 'predictor') # interaction terms create high multicolinearity, so we will remove them (aka go back to logit_model3)
+```
+
+### assess linearity of log odds
+```{r}
+# get the log-odds (predicted values from the model)
+log_odds <- predict(logit_model3, type = "link")
+
+# List of continuous predictors
+continuous_predictors <- c("P_NEHD", "SOCIODEM_SCORE", "P_IMPERV", "P_TREEC", "P_MOBILE", "P_NOVEH", "P_PM25")
+
+# List to store the plots
+plot_list <- list()
+
+# Loop through each continuous predictor and plot
+for (predictor in continuous_predictors) {
+  # Plot continuous predictor vs log-odds
+  p <- ggplot(data_clean, aes_string(x = predictor, y = log_odds)) + 
+    geom_point() + 
+    geom_smooth(method = "loess") + 
+    labs(title = paste(predictor, "vs Log-Odds"), x = predictor, y = "Log-Odds") +
+    theme_minimal() + 
+    theme(plot.title = element_text(hjust = 0.5))
+  
+  # Add the plot to the list
+  plot_list[[predictor]] <- p
+}
+
+# Arrange all plots in a grid
+grid.arrange(grobs = plot_list, ncol = 3)  
+
+# these all look linear, so we are good!!
+
+```
+
+### assess influential outliers
+```{r}
+# extract model results + add cook's d values
+model.data <- augment(logit_model3) %>%
+  mutate(index = 1:n(),
+         cooks_d = .cooksd)
+
+# filter for outliers and cook's d
+model.data %>% 
+  filter(abs(.std.resid) > 3) %>% 
+  filter(cooks_d > 1)  
+
+# therefore, no influential outliers present
+```
+
+All assumptions for logistic regression are met. 
+
+## PRINT FINAL MODEL
+## check how well model fits
+```{r}
+# Model deviance
+deviance(logit_model3)
+
+# Pseudo R-squared
+pR2 <- 1 - logit_model3$deviance / logit_model3$null.deviance
+pR2
+```
+
+## print summary
+```{r}
+# summary of model
+summary(logit_model3)
+# print odds ratios
+odds_ratios <- exp(coef(logit_model3))
+odds_ratios
+```
+
+## place all regression results into table and export to word
+```{r}
+results <- cbind(
+  OR = exp(coef(logit_model3)), 
+  exp(confint(logit_model3)),  # CI for OR
+  p_value = summary(logit_model3)$coefficients[, "Pr(>|z|)"]
+)
+multivariate_table_log_reg <- print(results)
+multivariate_table_log_reg <- as.data.frame(multivariate_table_log_reg)
+```
+
+```{r}
+multivariate_table_log_reg$p_value <- formatC(multivariate_table_log_reg$p_value, format = "e", digits = 3)
+
+multivariate_table_log_reg %>%  
+  rownames_to_column("Characteristic") %>%
+  mutate(
+    OR = round(OR, 3),
+    `2.5 %` = round(`2.5 %`, 3),
+    `97.5 %` = round(`97.5 %`, 3),
+    p_value = formatC(p_value, format = "e", digits = 3)
+  ) %>%
+  flextable() %>%
+  # Bold headers
+  bold(part = "header") %>%
+  # Set font to Times New Roman, size to 12
+  font(fontname = "Times New Roman", part = "all") %>%
+  fontsize(size = 11, part = "all") %>%
+  # Add borders only below the header and in specific locations
+  hline_top(border = fp_border(color = "black", width = 1.5), part = "header") %>%
+  hline_bottom(border = fp_border(color = "black", width = 1.5), part = "body") %>% # Bottom border
+  # Add padding for readability
+  padding(padding = 5, part = "all") %>% 
+  flextable::save_as_docx(path = "logistic_reg_table.docx") 
+```
+
+
+
