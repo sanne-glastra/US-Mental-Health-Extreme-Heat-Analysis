@@ -4,7 +4,7 @@
 
 This repository documents a geospatial workflow examining heat exposure and mental health outcomes across the US (2024), implementing Global Moran’s I and LISA for hotspot identification, followed by global linear regression and spatial lag modeling. The project emphasizes the importance of spatial dependence and compares **absolute** versus **relative** measures of extreme heat in explaining mental health disparities.
 
-The analysis is conducted at the Zip Code Tabulation Area (ZCTA) level and uses spatial regression techniques to account for geographic clustering in mental health outcomes.
+The analysis is conducted at the Zip Code Tabulation Area (ZCTA) level.
 
 ---
 
