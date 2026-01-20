@@ -6,10 +6,29 @@
 ![Methods](https://img.shields.io/badge/Methods-Random%20Forest%20%7C%20Spatial%20Lag-orange)
 
 ## 📌 Project Overview
-This repository documents a **two-phase multi-modal analysis** examining the relationship between extreme heat and mental health outcomes across the US (2024). The project evolves from standard epidemiological modeling to advanced geospatial analysis:
+This repository documents a **two-phase multi-modal analysis** examining the relationship between extreme heat and mental health outcomes across the US (2024). The analysis is conducted at the **Zip Code Tabulation Area (ZCTA)** level and evolves from standard epidemiological modeling to advanced geospatial analysis:
 
 * **Phase 1 (Risk Modeling):** Initial investigation using Logistic Regression and Random Forest to rank risk factors (R).
 * **Phase 2 (Spatial Correction):** Addressed the limitations of Phase 1 by incorporating **Absolute Heat metrics** and accounting for **spatial dependence** (Python).
+
+## 📂 Data Sources & Variables
+All data correspond to the year 2024 and are aggregated to the ZCTA level.
+
+### 🧠 Outcome Variable
+* **Poor Mental Health:** Crude prevalence of adults (18+) reporting ≥14 days of “not good” mental health.
+* **Source:** CDC Heat & Health Tracker.
+
+### 🌡️ Exposure Variables (Heat Metrics)
+* **Relative Heat (Phase 1):** Number of extreme heat days (days above the 95th percentile of historical temperature).
+* **Absolute Heat (Phase 2):** Annual maximum temperature (°C), derived from PRISM gridded climate data.
+* **Sources:** PRISM Climate Group; CDC Heat & Health Tracker.
+
+### 📊 Covariates (Risk Factors)
+Covariate selection was informed by a Directed Acyclic Graph (DAG) to control for confounding:
+* **Sociodemographics:** Composite sociodemographic score (Poverty, Education), Percent white population, Households without vehicle access.
+* **Built Environment:** Impervious surface coverage (%), Mobile home percentage.
+* **Natural Environment:** Tree canopy coverage (%), Days above PM2.5 regulatory threshold.
+* **Source:** U.S. Census Bureau (ACS 5-Year Estimates) and CDC.
 
 ## 🔍 Key Findings
 
@@ -24,13 +43,13 @@ This repository documents a **two-phase multi-modal analysis** examining the rel
 ## 🛠️ Methodology
 
 ### Phase 1: Machine Learning & Risk (R)
-* **Goal:** Establish baseline risk factors.
-* **Techniques:** Random Forest (Variable Importance), Logistic Regression (GLM), Diagnostic Testing (Heteroscedasticity).
+* **Goal:** Establish baseline risk factors and rank variable importance.
+* **Techniques:** Random Forest Regressors, Logistic Regression (GLM), Diagnostic Testing (VIF, Heteroscedasticity).
 * **Libraries:** `randomForest`, `caret`, `lmtest`, `tidyverse`.
 
 ### Phase 2: Spatial Statistics (Python)
 * **Goal:** Correct for spatial autocorrelation ($I \approx 0.71$) and test absolute heat metrics.
-* **Techniques:** LISA (Local Indicators of Spatial Association), Spatial Lag Models (Maximum Likelihood).
+* **Techniques:** LISA (Local Indicators of Spatial Association), Spatial Lag Models (Maximum Likelihood), Global Moran's I.
 * **Libraries:** `geopandas`, `pysal`, `statsmodels`.
 
 ## 📄 Reports & Code
