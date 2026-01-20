@@ -111,3 +111,7 @@ Strong spatial clustering underscores the role of shared environmental, social, 
     - Incorporate humidity-based heat metrics
     - Explore longitudinal designs
     - Investigate mechanisms linking heat exposure to mental health outcomes
+ 
+## 📄 Reports & Code
+* **Executive Summary:** [Read the Findings (PDF)](reports/US_Mental_Health_Spatial_Analysis_Report.pdf)
+* **Technical Workflow:** [View Full Spatial Analysis (Jupyter Notebook)](code/spatial_econometric_modeling.ipynb)
