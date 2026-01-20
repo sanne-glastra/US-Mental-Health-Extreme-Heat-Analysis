@@ -113,5 +113,5 @@ Strong spatial clustering underscores the role of shared environmental, social, 
     - Investigate mechanisms linking heat exposure to mental health outcomes
  
 ## 📄 Reports & Code
-* **Executive Summary:** [Read the Findings (PDF)](reports/US_Mental_Health_Spatial_Analysis_Report.pdf)
-* **Technical Workflow:** [View Full Spatial Analysis (Jupyter Notebook)](code/spatial_econometric_modeling.ipynb)
+* **Executive Summary:** [Read the Findings (PDF)](Geospatial Analysis/US_Mental_Health_Spatial_Analysis_Report.pdf)
+* **Technical Workflow:** [View Full Spatial Analysis (Jupyter Notebook)](Geospatial Analysis/spatial_econometric_modeling.ipynb)
