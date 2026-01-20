@@ -2,7 +2,7 @@
 
 ## Overview
 
-This repository contains Python code, data workflows, and outputs for a geospatial analysis examining the relationship between extreme heat exposure and poor mental health outcomes across the United States in 2024. The project emphasizes the importance of spatial dependence and compares **absolute** versus **relative** measures of extreme heat in explaining mental health disparities.
+This repository documents a geospatial workflow examining heat exposure and mental health outcomes across the US (2024), implementing Global Moran’s I and LISA for hotspot identification, followed by global linear regression and spatial lag modeling. The project emphasizes the importance of spatial dependence and compares **absolute** versus **relative** measures of extreme heat in explaining mental health disparities.
 
 The analysis is conducted at the Zip Code Tabulation Area (ZCTA) level and uses spatial regression techniques to account for geographic clustering in mental health outcomes.
 
