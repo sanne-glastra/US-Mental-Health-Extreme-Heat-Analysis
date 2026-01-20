@@ -3,7 +3,7 @@
 ![Status](https://img.shields.io/badge/Status-Completed-success)
 ![R](https://img.shields.io/badge/Language-R-blue)
 ![Python](https://img.shields.io/badge/Language-Python-blue)
-![Methods](https://img.shields.io/badge/Methods-Random%20Forest%20%7C%20Spatial%20Lag-orange)
+![Methods](https://img.shields.io/badge/Methods-Random%20Forest%20%7C%20Logistic%20Reg%20%7C%20Spatial%20Lag-orange)
 
 ## 📌 Project Overview
 This repository documents a **two-phase multi-modal analysis** examining the relationship between extreme heat and mental health outcomes across the US (2024). The analysis is conducted at the **Zip Code Tabulation Area (ZCTA)** level and evolves from standard epidemiological modeling to advanced geospatial analysis:
