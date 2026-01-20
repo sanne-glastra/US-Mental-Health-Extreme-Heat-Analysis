@@ -36,11 +36,11 @@ This repository documents a **two-phase multi-modal analysis** examining the rel
 ## 📄 Reports & Code
 
 ### 📈 Phase 1: Risk Modeling (R)
-* **Full Report:** [Read Phase 1 Findings (PDF)](reports/Phase1_Risk_Modeling.pdf)
+* **Full Report:** [Read Phase 1 Findings (PDF)](Reports/Phase1_Risk_Modeling.pdf)
 * **Source Code:**
-    * [Random Forest: Variable Importance](predictive-modeling/random_forest_risk_model.Rmd)
-    * [Logistic Regression: Odds Ratios](predictive-modeling/logistic_regression_risk_model.Rmd)
+    * [Random Forest: Variable Importance](Predictive-Modeling/random_forest_risk_model.Rmd)
+    * [Logistic Regression: Odds Ratios](Predictive-Modeling/logistic_regression_risk_model.Rmd)
 
 ### 🌍 Phase 2: Spatial Analysis (Python)
-* **Full Report:** [Read Phase 2 Findings (PDF)](reports/Phase2_Spatial_Analysis.pdf)
-* **Source Code:** [Geospatial Workflow (Notebook)](geospatial-analysis/spatial_econometric_modeling.ipynb)
+* **Full Report:** [Read Phase 2 Findings (PDF)](Reports/Phase2_Spatial_Analysis.pdf)
+* **Source Code:** [Geospatial Workflow (Notebook)](Geospatial-Analysis/spatial_econometric_modeling.ipynb)
